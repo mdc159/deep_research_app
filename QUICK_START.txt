@@ -1,0 +1,54 @@
+========================================
+DEEP RESEARCH APP - QUICK START
+========================================
+
+Your virtual environment was created in WSL, so it uses Linux-style paths.
+The launcher scripts have been updated to handle this automatically.
+
+========================================
+OPTION 1: Use Launch Script (Recommended)
+========================================
+
+PowerShell:
+    .\launch.ps1
+
+Command Prompt:
+    launch.bat
+
+========================================
+OPTION 2: Manual Launch (One Command)
+========================================
+
+PowerShell:
+    .\.venv\bin\activate.ps1; streamlit run app\streamlit_app.py
+
+Command Prompt:
+    .venv\bin\activate.bat && streamlit run app\streamlit_app.py
+
+========================================
+OPTION 3: Quick Start (Instant)
+========================================
+
+    launch_simple.bat
+
+========================================
+TROUBLESHOOTING
+========================================
+
+If you see "cannot be loaded because running scripts is disabled":
+
+1. Open PowerShell as Administrator
+2. Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+3. Close and reopen PowerShell
+4. Try again: .\launch.ps1
+
+========================================
+NOTES
+========================================
+
+- First launch takes 2-3 minutes (ML library loading)
+- Subsequent launches are instant
+- App runs at: http://localhost:8501
+- Press Ctrl+C to stop
+
+========================================

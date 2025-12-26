@@ -1,0 +1,74 @@
+[project]
+name = "deep-research-app"
+version = "0.1.0"
+description = "Research system that transforms PDFs, URLs, and research questions into versioned, citation-backed Markdown papers"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Mike", email = "mike@example.com"}
+]
+keywords = ["research", "ai", "rag", "langchain", "deepagents"]
+
+dependencies = [
+    "deepagents>=0.2.6",
+    "langchain>=0.3.0",
+    "langgraph>=0.2.0",
+    "langchain-anthropic",
+    "langchain-openai",
+    "langchain-google-genai",
+    "docling",
+    "docling-core",
+    "crawl4ai>=0.6.2",
+    "supabase>=2.15.0",
+    "sentence-transformers>=4.1.0",
+    "streamlit>=1.30.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "tiktoken",
+    "tavily-python",
+    "python-dotenv",
+    "asyncio",
+    "aiohttp",
+    "transformers",
+    "openai>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "mypy",
+]
+
+[project.scripts]
+deep-research = "app.streamlit_app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app", "research_agent", "ingestion", "retrieval", "storage", "schemas"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+select = ["E", "F", "I", "N", "W", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.isort]
+known-first-party = ["app", "research_agent", "ingestion", "retrieval", "storage", "schemas"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --tb=short"
