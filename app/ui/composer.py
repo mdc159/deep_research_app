@@ -7,10 +7,10 @@ Displays the document preview, editor, and diff views.
 import asyncio
 import logging
 from datetime import datetime
-from uuid import UUID
 
 import streamlit as st
 
+from schemas.models import ResearchBrief
 from services.citation import CitationService
 from services.versioning import VersioningService
 from storage.supabase import get_supabase_client
@@ -26,33 +26,16 @@ def render_document_composer():
 
     st.header("📝 Document Composer")
 
-    # Load document versions
     documents = load_documents()
+    view = render_workspace_toggle(bool(documents))
 
-    if not documents:
-        render_no_document()
-        return
+    if view == "canvas" or not documents:
+        render_research_canvas()
+        if not documents:
+            return
+        st.markdown("---")
 
-    # Version selector
-    render_version_selector(documents)
-
-    # Main tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["👁️ Preview", "✏️ Edit", "📊 Diff", "📚 Citations"])
-
-    with tab1:
-        render_preview_tab(documents)
-
-    with tab2:
-        render_edit_tab(documents)
-
-    with tab3:
-        render_diff_tab(documents)
-
-    with tab4:
-        render_citations_tab(documents)
-
-    # Export options
-    render_export_options(documents)
+    render_document_workspace(documents)
 
 
 def load_documents():
@@ -66,6 +49,174 @@ def load_documents():
     except Exception as e:
         st.error(f"Failed to load documents: {e}")
         return []
+
+
+def render_workspace_toggle(has_documents: bool) -> str:
+    """Toggle between intake canvas and document workspace."""
+
+    default_view = st.session_state.get(
+        "composer_view", "document" if has_documents else "canvas"
+    )
+    options = ["canvas", "document"]
+
+    view = st.radio(
+        "Workspace",
+        options=options,
+        format_func=lambda x: "🧭 Canvas" if x == "canvas" else "📝 Document",
+        horizontal=True,
+        key="composer_view",
+        index=options.index(default_view) if default_view in options else 0,
+        help="Start in the Research Canvas during intake, then switch to the document once drafting begins.",
+    )
+
+    if view == "document" and not has_documents:
+        st.info(
+            "Drafting hasn't started yet. The Research Canvas will stay visible until the first document is created."
+        )
+        return "canvas"
+
+    return view
+
+
+def render_research_canvas():
+    """Render the Research Canvas intake summary and persistence controls."""
+
+    run = st.session_state.current_run
+    if not run:
+        st.info("Select a run to view the intake canvas")
+        return
+
+    brief = load_research_brief()
+
+    st.subheader("🧭 Research Canvas")
+    st.caption(
+        "Live intake clarifications are captured here and saved for the agent to plan against."
+    )
+
+    last_updated = brief.updated_at.strftime("%Y-%m-%d %H:%M UTC") if brief.updated_at else ""
+    if last_updated:
+        st.caption(f"Last saved: {last_updated}")
+
+    with st.form("research_canvas_form"):
+        objective = st.text_area(
+            "Objective",
+            value=brief.objective,
+            help="Clarified research objective from intake",
+        )
+        constraints = st.text_area(
+            "Constraints",
+            value=brief.constraints or "",
+            height=80,
+            help="Key constraints gathered during intake",
+        )
+        required_sources = st.text_area(
+            "Required sources",
+            value="\n".join(brief.required_sources),
+            height=120,
+            help="One per line, e.g., specific URLs or datasets the user requested",
+        )
+        open_questions = st.text_area(
+            "Open questions",
+            value="\n".join(brief.open_questions),
+            height=120,
+            help="Outstanding clarifications to resolve before or during drafting",
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button(
+                "💾 Save canvas snapshot", use_container_width=True, type="primary"
+            )
+        with col2:
+            refresh = st.form_submit_button("🔄 Reload from Supabase", use_container_width=True)
+
+    if refresh:
+        st.session_state.pop("research_brief", None)
+        st.rerun()
+
+    if submitted:
+        save_research_brief(
+            brief=brief,
+            objective=objective,
+            constraints=constraints,
+            required_sources_text=required_sources,
+            open_questions_text=open_questions,
+        )
+
+    st.markdown("---")
+    st.markdown("#### Canvas Snapshot")
+    st.markdown(f"**Objective**: {objective if submitted else brief.objective}")
+    if constraints or brief.constraints:
+        st.markdown(
+            f"**Constraints**:\n\n{constraints if submitted else (brief.constraints or 'None specified')}"
+        )
+    st.markdown("**Required sources**:")
+    for source in _parse_multiline_list(required_sources if submitted else "\n".join(brief.required_sources)):
+        st.markdown(f"- {source}")
+    st.markdown("**Open questions**:")
+    for question in _parse_multiline_list(open_questions if submitted else "\n".join(brief.open_questions)):
+        st.markdown(f"- {question}")
+
+    if st.button("📝 Create Manual Draft", use_container_width=True):
+        create_manual_draft()
+
+
+def save_research_brief(
+    brief: ResearchBrief,
+    objective: str,
+    constraints: str,
+    required_sources_text: str,
+    open_questions_text: str,
+):
+    """Persist the research canvas snapshot to Supabase and cache in session state."""
+
+    try:
+        client = get_supabase_client()
+        updated_brief = ResearchBrief(
+            id=brief.id,
+            run_id=brief.run_id,
+            objective=objective.strip() or brief.objective,
+            constraints=constraints.strip() or None,
+            required_sources=_parse_multiline_list(required_sources_text),
+            open_questions=_parse_multiline_list(open_questions_text),
+            updated_at=datetime.utcnow(),
+        )
+
+        asyncio.run(client.upsert_research_brief(updated_brief))
+        st.session_state.research_brief = updated_brief
+        st.success("Canvas saved to Supabase")
+    except Exception as e:
+        st.error(f"Failed to save canvas: {e}")
+
+
+def load_research_brief() -> ResearchBrief:
+    """Fetch the research brief for the active run or create a default one."""
+
+    cached = st.session_state.get("research_brief")
+    if cached and cached.run_id == st.session_state.current_run_id:
+        return cached
+
+    run_id = st.session_state.current_run_id
+
+    try:
+        client = get_supabase_client()
+        brief = asyncio.run(client.get_research_brief(run_id))
+    except Exception as e:
+        st.error(f"Failed to load research brief: {e}")
+        brief = None
+
+    if brief:
+        st.session_state.research_brief = brief
+        return brief
+
+    run = st.session_state.current_run
+    default_brief = ResearchBrief(
+        run_id=run.id,
+        objective=run.objective,
+        constraints=_serialize_constraints(run.constraints),
+    )
+    st.session_state.research_brief = default_brief
+    return default_brief
 
 
 def render_no_document():
@@ -125,6 +276,32 @@ def create_manual_draft():
 
     except Exception as e:
         st.error(f"Failed to create draft: {e}")
+
+
+def render_document_workspace(documents):
+    """Render the document-focused workspace with versions and tools."""
+
+    if not documents:
+        render_no_document()
+        return
+
+    render_version_selector(documents)
+
+    tab1, tab2, tab3, tab4 = st.tabs(["👁️ Preview", "✏️ Edit", "📊 Diff", "📚 Citations"])
+
+    with tab1:
+        render_preview_tab(documents)
+
+    with tab2:
+        render_edit_tab(documents)
+
+    with tab3:
+        render_diff_tab(documents)
+
+    with tab4:
+        render_citations_tab(documents)
+
+    render_export_options(documents)
 
 
 def render_version_selector(documents):
@@ -436,3 +613,25 @@ def render_export_options(documents):
         if st.button("📋 Copy to Clipboard", use_container_width=True):
             st.code(doc.markdown)
             st.info("Use Ctrl+C to copy")
+
+
+def _parse_multiline_list(text: str) -> list[str]:
+    """Convert newline-delimited text into a clean list."""
+
+    return [line.strip() for line in text.split("\n") if line.strip()]
+
+
+def _serialize_constraints(constraints) -> str | None:
+    """Normalize constraints from Run objects into display text."""
+
+    if not constraints:
+        return None
+    if isinstance(constraints, dict):
+        lines = []
+        for key, value in constraints.items():
+            if value:
+                lines.append(f"- {key}: {value}")
+            else:
+                lines.append(f"- {key}")
+        return "\n".join(lines)
+    return str(constraints)
