@@ -106,6 +106,21 @@ class Document(BaseModel):
         from_attributes = True
 
 
+class ResearchBrief(BaseModel):
+    """Snapshot of intake clarifications for a research run."""
+
+    id: UUID = Field(default_factory=uuid4)
+    run_id: UUID = Field(...)
+    objective: str = Field(..., description="Clarified research objective")
+    constraints: str | None = Field(default=None, description="Constraints captured during intake")
+    required_sources: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        from_attributes = True
+
+
 class CitationAnchor(BaseModel):
     """An anchor point linking a citation to a specific chunk location."""
 

@@ -21,6 +21,7 @@ from schemas.models import (
     Citation,
     Document,
     Event,
+    ResearchBrief,
     Run,
     SearchResult,
     Source,
@@ -496,6 +497,64 @@ class SupabaseClient:
             )
             for d in result.data
         ]
+
+    # =========================================================================
+    # RESEARCH BRIEFS / CANVAS SNAPSHOTS
+    # =========================================================================
+
+    async def upsert_research_brief(self, brief: ResearchBrief) -> ResearchBrief:
+        """Persist a research canvas snapshot for a run.
+
+        Args:
+            brief: ResearchBrief model to store
+
+        Returns:
+            Stored ResearchBrief model
+        """
+
+        data = {
+            "id": str(brief.id),
+            "run_id": str(brief.run_id),
+            "objective": brief.objective,
+            "constraints": brief.constraints,
+            "required_sources": brief.required_sources,
+            "open_questions": brief.open_questions,
+            "updated_at": brief.updated_at.isoformat(),
+        }
+
+        # Ensure a single record per run while keeping id stable
+        self.client.table("research_briefs").upsert(
+            data,
+            on_conflict="run_id",
+        ).execute()
+
+        return brief
+
+    async def get_research_brief(self, run_id: UUID) -> ResearchBrief | None:
+        """Retrieve the latest research canvas snapshot for a run."""
+
+        result = (
+            self.client.table("research_briefs")
+            .select("*")
+            .eq("run_id", str(run_id))
+            .order("updated_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if not result.data:
+            return None
+
+        brief = result.data[0]
+        return ResearchBrief(
+            id=UUID(brief["id"]),
+            run_id=UUID(brief["run_id"]),
+            objective=brief.get("objective", ""),
+            constraints=brief.get("constraints"),
+            required_sources=brief.get("required_sources", []) or [],
+            open_questions=brief.get("open_questions", []) or [],
+            updated_at=datetime.fromisoformat(brief["updated_at"].replace("Z", "+00:00")),
+        )
 
     # =========================================================================
     # CITATIONS
