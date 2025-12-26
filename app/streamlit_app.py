@@ -121,7 +121,7 @@ def render_run_list():
     """Render the list of existing runs."""
     try:
         client = get_supabase_client()
-        runs = asyncio.run(client.get_runs(limit=10))
+        runs = asyncio.run(client.list_runs(limit=10))
 
         if not runs:
             st.info("No runs yet. Create one above!")
