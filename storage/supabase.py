@@ -181,6 +181,15 @@ class SupabaseClient:
             for r in result.data
         ]
 
+    async def get_runs(self, limit: int = 50, offset: int = 0) -> list[Run]:
+        """Compatibility wrapper for listing runs.
+
+        The UI still calls ``get_runs``; keep both names available while we
+        transition to ``list_runs`` for clarity.
+        """
+
+        return await self.list_runs(limit=limit, offset=offset)
+
     async def update_run_status(
         self,
         run_id: UUID,
@@ -196,6 +205,38 @@ class SupabaseClient:
         self.client.table("runs").update({"status": status}).eq(
             "id", str(run_id)
         ).execute()
+
+    async def update_run_config(self, run_id: UUID, config: RunConfig) -> Run:
+        """Persist an updated run configuration (e.g., brief changes).
+
+        Args:
+            run_id: Run ID
+            config: New run configuration to store
+
+        Returns:
+            Updated Run model
+        """
+        result = (
+            self.client.table("runs")
+            .update({"config": config.model_dump()})
+            .eq("id", str(run_id))
+            .execute()
+        )
+
+        if not result.data:
+            raise ValueError("Failed to update run config")
+
+        run_data = result.data[0]
+        return Run(
+            id=UUID(run_data["id"]),
+            title=run_data["title"],
+            objective=run_data["objective"],
+            constraints=run_data.get("constraints", {}),
+            created_at=datetime.fromisoformat(run_data["created_at"].replace("Z", "+00:00")),
+            updated_at=datetime.fromisoformat(run_data["updated_at"].replace("Z", "+00:00")),
+            status=run_data["status"],
+            config=RunConfig(**run_data["config"]),
+        )
 
     async def delete_run(self, run_id: UUID) -> None:
         """
