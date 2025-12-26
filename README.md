@@ -117,10 +117,10 @@ deep_research_app/
 
 ### Creating a Research Run
 
-1. Click "New Run" in the left pane
-2. Enter your research objective
-3. Upload PDFs or add URLs
-4. Click "Draft" to generate the research paper
+1. In the sidebar, expand "➕ New Research Run" and enter a **Title** and **Research Objective**
+2. Click **Create Run** to load the Run, Evidence, and Log tabs for that run
+3. In the **📄 Run** tab, add sources via **Upload PDFs** or **Add URLs**
+4. Once sources are added, click **▶️ Start Research** in the **🤖 Research Agent** section to kick off the workflow
 
 ### Workflow
 
