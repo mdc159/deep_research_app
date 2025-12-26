@@ -196,6 +196,18 @@ def render_source_list():
         st.error(f"Failed to load sources: {e}")
 
 
+def _is_brief_finalized(run) -> bool:
+    """Check whether the research brief is finalized for a run."""
+    brief_state = st.session_state.get(f"brief_state_{run.id}")
+    if brief_state is not None:
+        return brief_state.get("finalized", False)
+
+    try:
+        return bool(run.config.brief.finalized)
+    except Exception:
+        return False
+
+
 def render_agent_controls():
     """Render agent control buttons."""
     st.subheader("🤖 Research Agent")
@@ -213,6 +225,8 @@ def render_agent_controls():
     except Exception:
         has_sources = False
 
+    brief_finalized = _is_brief_finalized(run)
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -225,7 +239,7 @@ def render_agent_controls():
                 "▶️ Start Research",
                 use_container_width=True,
                 type="primary",
-                disabled=not has_sources,
+                disabled=not has_sources or not brief_finalized,
             ):
                 start_agent()
 
@@ -235,6 +249,12 @@ def render_agent_controls():
 
     if not has_sources:
         st.info("Add sources before starting the agent")
+
+    if not brief_finalized:
+        st.warning(
+            "Finalize the research brief in the Research Brief tab to enable the agent.",
+            icon="✍️",
+        )
 
     # Agent status
     if st.session_state.agent_running:
