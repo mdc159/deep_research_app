@@ -1,6 +1,6 @@
 # Deep Research App
 
-A Python research system that transforms PDFs, URLs, and research questions into **versioned, citation-backed Markdown papers** using the `deepagents` framework with a Streamlit UI.
+A Python research system that uses the `deepagents` framework with a Streamlit UI.
 
 ## Features
 
