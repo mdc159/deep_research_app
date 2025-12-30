@@ -204,19 +204,25 @@ def render_welcome():
 def render_left_pane():
     """Render the left pane with evidence and controls."""
     from app.ui.evidence import render_evidence_browser
+    from app.ui.brief import render_research_brief
     from app.ui.runs import render_run_details
     from app.ui.progress import render_progress_log
 
     # Tab navigation
-    tab1, tab2, tab3 = st.tabs(["📄 Run", "🔍 Evidence", "📋 Log"])
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📄 Run", "🧭 Research Brief", "🔍 Evidence", "📋 Log"]
+    )
 
     with tab1:
         render_run_details()
 
     with tab2:
-        render_evidence_browser()
+        render_research_brief()
 
     with tab3:
+        render_evidence_browser()
+
+    with tab4:
         render_progress_log()
 
 

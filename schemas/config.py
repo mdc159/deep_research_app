@@ -5,6 +5,7 @@ This module defines Pydantic models for all configurable aspects of the
 research pipeline, including model selection, ingestion, and retrieval settings.
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -158,6 +159,31 @@ class RetrievalConfig(BaseModel):
         return self
 
 
+class BriefMessage(BaseModel):
+    """A single chat message in the research brief conversation."""
+
+    role: Literal["user", "assistant"] = Field(...)
+    content: str = Field(..., min_length=1)
+    ts: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ResearchBrief(BaseModel):
+    """A structured brief collected before starting the research agent."""
+
+    messages: list[BriefMessage] = Field(
+        default_factory=list,
+        description="Chat-style history between the user and the agent",
+    )
+    final_summary: str | None = Field(
+        default=None,
+        description="Agreed requirements and constraints for downstream steps",
+    )
+    finalized: bool = Field(
+        default=False,
+        description="Whether the brief has been finalized and approved",
+    )
+
+
 class RunConfig(BaseModel):
     """Configuration for a research run."""
 
@@ -195,6 +221,10 @@ class RunConfig(BaseModel):
     retrieval: RetrievalConfig = Field(
         default_factory=RetrievalConfig,
         description="Retrieval pipeline configuration",
+    )
+    brief: ResearchBrief = Field(
+        default_factory=ResearchBrief,
+        description="Chat-style research brief captured before starting the agent",
     )
 
 
