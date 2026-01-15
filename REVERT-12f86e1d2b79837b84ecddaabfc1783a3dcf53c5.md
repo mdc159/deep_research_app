@@ -1,0 +1,1 @@
+# Revert of PR #9\n\nThis commit reverts merge commit 12f86e1d2b79837b84ecddaabfc1783a3dcf53c5 that included\nchanges for adding one-button karaoke pipeline scaffold.
