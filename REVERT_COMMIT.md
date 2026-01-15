@@ -1,0 +1,1 @@
+Revert "Revert accidental merge of PR #9 - Add one-button karaoke pipeline scaffold"
